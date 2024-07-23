@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF.js On-Demand Loading</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+        }
+        #pdf-container {
+            width: 100vw;
+            height: 100vh;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        canvas {
+            margin: 10px 0;
+            border: none;
+        }
+        /* PC端样式 */
+        @media (min-width: 768px) {
+            canvas {
+                width: auto;
+                height: auto;
+            }
+        }
+        /* 移动端样式 */
+        @media (max-width: 767px) {
+            canvas {
+                width: 90vw;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="pdf-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.min.js"></script>
+    <script>
+        function getQueryParams() {
+            let params = {};
+            window.location.search.substring(1).split('&').forEach(function(pair) {
+                let [key, value] = pair.split('=');
+                params[key] = decodeURIComponent(value);
+            });
+            return params;
+        }
+
+        const queryParams = getQueryParams();
+        const pdfUrl = queryParams['file'];
+
+        if (!pdfUrl) {
+            alert('No PDF file specified in the URL query parameters.');
+        } else {
+            const pdfContainer = document.getElementById('pdf-container');
+
+            const loadingTask = pdfjsLib.getDocument({
+                url: pdfUrl,
+                rangeChunkSize: 65536, // 分块请求的大小
+                disableAutoFetch: true, // 禁用自动抓取
+                disableStream: true // 禁用流传输，确保使用范围请求
+            });
+
+            loadingTask.promise.then(async pdfDoc => {
+                const numPages = pdfDoc.numPages;
+                console.log('Number of pages:', numPages);
+
+                for (let i = 1; i <= numPages; i++) {
+                    await renderPage(i);
+                }
+
+                async function renderPage(pageNum) {
+                    try {
+                        const page = await pdfDoc.getPage(pageNum);
+                        const viewport = page.getViewport({ scale: 1.5 });
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+                        pdfContainer.appendChild(canvas);
+
+                        const renderContext = {
+                            canvasContext: context,
+                            viewport: viewport
+                        };
+                        await page.render(renderContext).promise;
+                    } catch (error) {
+                        console.error(`Error rendering page ${pageNum}:`, error);
+                    }
+                }
+
+            }).catch(error => {
+                console.error('Error loading PDF:', error);
+                alert('Error loading PDF: ' + error.message);
+            });
+        }
+    </script>
+</body>
+</html>

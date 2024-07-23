@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF File Browser</title>
+    <style>
+        #file-list {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>PDF File Browser</h1>
+    <div id="file-list"></div>
+    <script>
+        async function fetchFiles() {
+            const directory = '/srv/comic';
+            const response = await fetch(`/files?dir=${encodeURIComponent(directory)}`);
+            const files = await response.json();
+            const fileList = document.getElementById('file-list');
+            fileList.innerHTML = ''; // Clear previous file list
+
+            files.forEach(file => {
+                const link = document.createElement('a');
+                link.href = `/pdf-viewer.html?file=${encodeURIComponent(`${directory}/${file}`)}`;
+                link.textContent = file;
+                link.target = '_blank'; // Open link in new tab
+                fileList.appendChild(link);
+                fileList.appendChild(document.createElement('br'));
+            });
+        }
+
+        // Fetch files when the page loads
+        window.onload = fetchFiles;
+    </script>
+</body>
+</html>
